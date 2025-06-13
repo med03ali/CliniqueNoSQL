@@ -626,6 +626,175 @@ function CreateMedecinForm({ token, onBack }) {
   );
 }
 
+
+// Composant AssignMedecinToPatientForm (version initiale, sans les icônes ou styles avancés)
+function AssignMedecinToPatientForm({ token, onBack }) {
+  const [patients, setPatients] = useState([]);
+  const [medecins, setMedecins] = useState([]);
+  const [idPatientSelectionne, setIdPatientSelectionne] = useState('');
+  const [idMedecinSelectionne, setIdMedecinSelectionne] = useState('');
+  const [chargementPatients, setChargementPatients] = useState(true);
+  const [chargementMedecins, setChargementMedecins] = useState(true);
+  const [erreurPatients, setErreurPatients] = useState(null);
+  const [erreurMedecins, setErreurMedecins] = useState(null);
+  const [message, setMessage] = useState('');
+  const [typeMessage, setTypeMessage] = useState('');
+
+  useEffect(() => {
+    const recupererListes = async () => {
+      // Récupérer les patients
+      try {
+        const reponsePatients = await fetch('http://localhost:5001/admin/patients', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!reponsePatients.ok) throw new Error(`Erreur HTTP ! Statut Patients : ${reponsePatients.status}`);
+        const donneesPatients = await reponsePatients.json();
+        setPatients(donneesPatients);
+      } catch (err) {
+        setErreurPatients(err.message);
+      } finally {
+        setChargementPatients(false);
+      }
+
+      // Récupérer les médecins
+      try {
+        const reponseMedecins = await fetch('http://localhost:5001/admin/medecins', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!reponseMedecins.ok) throw new Error(`Erreur HTTP ! Statut Médecins : ${reponseMedecins.status}`);
+        const donneesMedecins = await reponseMedecins.json();
+        setMedecins(donneesMedecins);
+      } catch (err) {
+        setErreurMedecins(err.message);
+      } finally {
+        setChargementMedecins(false);
+      }
+    };
+
+    recupererListes();
+  }, [token]);
+
+  const gererSoumission = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setTypeMessage('');
+
+    if (!idPatientSelectionne || !idMedecinSelectionne) {
+      setMessage('Veuillez sélectionner un patient et un médecin.');
+      setTypeMessage('error');
+      return;
+    }
+
+    try {
+      const reponse = await fetch(`http://localhost:5001/admin/patients/${idPatientSelectionne}/assign_medecin/${idMedecinSelectionne}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      const donnees = await reponse.json();
+
+      if (reponse.ok) {
+        setMessage(donnees.msg || 'Médecin assigné au patient avec succès !');
+        setTypeMessage('success');
+        setIdPatientSelectionne('');
+        setIdMedecinSelectionne('');
+      } else {
+        setMessage(donnees.msg || 'Échec de l\'assignation du médecin au patient.');
+        setTypeMessage('error');
+      }
+    } catch (erreur) {
+      console.error('Erreur lors de l\'assignation du médecin :', erreur);
+      setMessage('Erreur réseau ou serveur inaccessible.');
+      setTypeMessage('error');
+    }
+  };
+
+  return (
+    <div className="mt-8 p-8 bg-orange-50 rounded-lg border border-orange-200 shadow-inner w-full max-w-xl mx-auto">
+      <h3 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">Assigner un Médecin à un Patient</h3>
+      {(chargementPatients || chargementMedecins) && <p className="text-center text-gray-700">Chargement des listes...</p>}
+      {(erreurPatients || erreurMedecins) && (
+        <p className="text-center text-red-600">Erreur lors du chargement des données : {erreurPatients || erreurMedecins}</p>
+      )}
+
+      {!chargementPatients && !chargementMedecins && !erreurPatients && !erreurMedecins && (
+        <form onSubmit={gererSoumission} className="space-y-6">
+          <div>
+            <label htmlFor="select-patient" className="block text-base font-semibold text-gray-700 mb-1">
+              Sélectionner le Patient :
+            </label>
+            <select
+              id="select-patient"
+              value={idPatientSelectionne}
+              onChange={(e) => setIdPatientSelectionne(e.target.value)}
+              className="mt-1 block w-full px-5 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-base"
+              required
+            >
+              <option value="">-- Choisir un Patient --</option>
+              {patients.map((patient) => (
+                <option key={patient._id} value={patient._id}>
+                  {patient.nom} {patient.prenom} (Nom d'utilisateur : {patient.username})
+                </option>
+              ))}
+            </select>
+            {patients.length === 0 && !chargementPatients && <p className="text-sm text-gray-500 mt-2">Aucun patient disponible. Créez-en un d'abord.</p>}
+          </div>
+
+          <div>
+            <label htmlFor="select-medecin" className="block text-base font-semibold text-gray-700 mb-1">
+              Sélectionner le Médecin :
+            </label>
+            <select
+              id="select-medecin"
+              value={idMedecinSelectionne}
+              onChange={(e) => setIdMedecinSelectionne(e.target.value)}
+              className="mt-1 block w-full px-5 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-base"
+              required
+            >
+              <option value="">-- Choisir un Médecin --</option>
+              {medecins.map((medecin) => (
+                <option key={medecin._id} value={medecin._id}>
+                  Dr. {medecin.prenom} {medecin.nom} ({medecin.specialite})
+                </option>
+              ))}
+            </select>
+            {medecins.length === 0 && !chargementMedecins && <p className="text-sm text-gray-500 mt-2">Aucun médecin disponible. Créez-en un d'abord.</p>}
+          </div>
+
+          {message && (
+            <div
+              className={`p-4 rounded-lg text-base font-medium ${
+                typeMessage === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'
+              }`}
+              role="alert"
+            >
+              {message}
+            </div>
+          )}
+          <div className="flex justify-between items-center">
+            <button
+              type="submit"
+              className="py-3 px-6 border border-transparent rounded-lg shadow-md text-lg font-semibold text-white bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition duration-300 ease-in-out transform hover:-translate-y-0.5"
+            >
+              Assigner Médecin
+            </button>
+            <button
+              onClick={onBack}
+              type="button"
+              className="py-2 px-4 rounded-lg text-blue-600 border border-blue-300 hover:bg-blue-100 transition duration-300 ease-in-out font-medium"
+            >
+              Retour au Tableau de Bord
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // Composant ListPatients (MODIFIÉ pour inclure les boutons Mettre à jour/Supprimer)
 function ListPatients({ token, onBack, onUpdate }) {
   const [patients, setPatients] = useState([]);
