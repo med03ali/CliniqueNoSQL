@@ -1,4 +1,5 @@
-Hospital Management Application
+# Hospital Management Application
+
 Welcome to the Hospital Management Application, a comprehensive system for managing patients, doctors, and consultations within a medical facility. This project uses Flask for the backend API, Next.js (React) for the frontend, MongoDB as the main database, and Neo4j for complex relationship management. The entire application is containerized with Docker Compose.
 
 🚀 Features
